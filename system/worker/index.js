@@ -52,9 +52,10 @@ if(env.HIYORI_HOSTING==='cloudflare'){
   if(u.protocol!=='https:')return new Response('HTTPS required',{status:403});
   // Public form/AI calls and password attempts share a bounded per-address limit.
   const limited=req.method!=='GET'||req.headers.has('Authorization');
-  if(limited&&env.REQUEST_LIMITER){
+  const limiter=u.pathname.includes('extract')?(env.AI_LIMITER||env.REQUEST_LIMITER):env.REQUEST_LIMITER;
+  if(limited&&limiter){
     const key=(req.headers.get('CF-Connecting-IP')||'unknown')+':'+(u.pathname.includes('extract')?'extract':'requests');
-    if(!(await env.REQUEST_LIMITER.limit({key})).success)
+    if(!(await limiter.limit({key})).success)
       return json({error:'しばらく待ってから再度お試しください。'},429);
   }
 }
