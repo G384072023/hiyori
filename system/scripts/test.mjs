@@ -153,3 +153,23 @@ assert.equal((await accountRequest('/admin/login','POST',{username:'admin',passw
 assert.equal((await accountRequest('/admin/login','POST',{username:'admin',password:hostedEnv.HIYORI_ADMIN_PASSWORD})).status,401);
 assert.equal((await accountRequest('/employee/login','POST',{username:'b',password:'worker-b-123'})).status,200);
 console.log('PASS: account creation, short password, session revocation, staff disabling and last-admin protection');
+
+// Input and session regressions found during the end-to-end audit.
+const renewed=await accountRequest('/admin/login','POST',{username:'admin',password:'123456'});
+const renewedCookie=renewed.headers.get('set-cookie').split(';')[0];
+const duplicate={name:'重複確認',phone:'090-0000-0030'};
+assert.equal((await accountRequest('/admin/api/customers','POST',duplicate,renewedCookie)).status,200);
+assert.equal((await accountRequest('/admin/api/customers','POST',duplicate,renewedCookie)).status,409);
+assert.equal((await accountRequest('/admin/api/customers','POST',{name:{bad:true},phone:'bad'},renewedCookie)).status,400);
+assert.equal((await accountRequest('/admin/api/orders/HY-ffffffff','PATCH',{staff:'a',status:'回収予定'},renewedCookie)).status,404);
+const invalidOrder={name:'無効日付',phone:'090-0000-0040',items:'冷蔵庫',address:'東京都',appointment:'2026-02-30T10:00'};
+assert.equal((await accountRequest('/api/public/request','POST',invalidOrder)).status,400);
+assert.equal((await accountRequest('/api/public/request','POST',{...invalidOrder,appointment:'2026-11-25T10:00',note:'x'.repeat(2001)})).status,400);
+assert.equal((await accountRequest('/api/public/extract','POST',null)).status,400);
+assert.equal((await accountRequest('/admin/logout','POST',undefined,renewedCookie)).status,303);
+assert.equal((await accountRequest('/admin/api/data','GET',undefined,renewedCookie)).status,403);
+const legacyHeader=await worker.fetch(new Request('https://hiyori.example/admin/api/data',{
+  headers:{Authorization:'Basic '+btoa('admin:123456')},
+}),hostedEnv);
+assert.equal(legacyHeader.status,403);
+console.log('PASS: duplicate/invalid inputs, missing order, calendar validation, and complete logout');

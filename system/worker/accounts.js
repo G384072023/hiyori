@@ -32,15 +32,6 @@ async function passwordMatches(account, password) {
   }
   return difference === 0;
 }
-function basicCredentials(request) {
-  const header = request.headers.get('Authorization') || '';
-  if (!header.startsWith('Basic ')) return null;
-  try {
-    const decoded = new TextDecoder().decode(Uint8Array.from(atob(header.slice(6)), c => c.charCodeAt(0)));
-    const separator = decoded.indexOf(':');
-    return {username: decoded.slice(0, separator), password: decoded.slice(separator + 1)};
-  } catch { return null; }
-}
 export async function hasAccounts(env) {
   return Boolean(await env.DB.prepare('SELECT id FROM app_accounts LIMIT 1').first());
 }
@@ -54,11 +45,7 @@ export async function identity(request, env, role) {
       .bind(await digest(token), Date.now(), role).first();
     if (account) return account;
   }
-  const credentials = basicCredentials(request);
-  if (!credentials) return null;
-  const account = await env.DB.prepare('SELECT * FROM app_accounts WHERE username=? AND role=? AND enabled=1')
-    .bind(credentials.username, role).first();
-  return await passwordMatches(account, credentials.password) ? account : null;
+  return null;
 }
 
 // Called only after a successful legacy login, or inside an already-authorized admin request.
@@ -131,7 +118,7 @@ export async function loginRoute(request, url, env) {
       'Set-Cookie':sessionCookie(role,'',request,0),'Cache-Control':'no-store'}});
   }
   const body = await request.json();
-  if (typeof body.username !== 'string' || typeof body.password !== 'string' ||
+  if (!body || typeof body.username !== 'string' || typeof body.password !== 'string' ||
       body.username.length > 32 || body.password.length > 128) return json({error:'Invalid login'},401);
   if (!await hasAccounts(env)) {
     const username = role === 'admin' ? 'admin' : 'employee';
@@ -165,6 +152,7 @@ export async function accountRoute(request, url, env) {
     return json({accounts,currentId:actor.id});
   }
   const body = await request.json();
+  if(!body||typeof body!=='object'||Array.isArray(body))return json({error:'入力内容を確認してください。'},400);
   if (request.method === 'POST' && !id) {
     const {username,password,role,staff_name}=body;
     if (typeof username !== 'string' || !/^[a-zA-Z0-9._-]{1,32}$/.test(username) ||

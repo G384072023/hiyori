@@ -30,7 +30,7 @@ requestForm.onsubmit=async event=>{
     extracted.textContent='';extraction=null;
     submission=['受付番号：'+orderId,'申请编号：'+orderId];
   } catch(error) {
-    submission=error.message==='400'?['入力内容をご確認ください。','请核对填写的信息。']:['送信できませんでした。再度お試しください。','提交失败，请重试。'];
+    submission=error.message==='429'?['送信が集中しています。少し待ってから再度お試しください。','请求过于频繁，请稍后重试。']:error.message==='400'?['入力内容をご確認ください。','请核对填写的信息。']:['送信できませんでした。再度お試しください。','提交失败，请重试。'];
   } finally {button.disabled=false;renderLanguage()}
 };
 document.querySelector('#extract').onclick=async event=>{
@@ -40,7 +40,8 @@ document.querySelector('#extract').onclick=async event=>{
     const raw=document.querySelector('#raw').value.trim();
     if(!raw){extraction=['依頼文を入力してください。','请输入日语申请内容。'];return}
     const data=await send('/api/public/extract',{text:raw});
-    for(const field of ['items','address']) if(data[field])requestForm.elements[field].value=data[field];
+    // Clear old suggestions too when the next request omits a field.
+    for(const field of ['items','address'])requestForm.elements[field].value=data[field]||'';
     const model=data.mode==='model';
     extraction=[
       (model?'モデル抽出':'ルールによるデモ')+'｜希望日時：'+(data.appointment||'未検出')+'。下の日時欄で確認してください。',
@@ -48,7 +49,7 @@ document.querySelector('#extract').onclick=async event=>{
     ];
   } catch(error) {
     extraction=error.message==='503'
-      ?['モデルに接続できません。Ollama と設定を確認してください。','无法连接模型，请检查 Ollama 是否运行以及模型配置。']
+      ?['情報抽出を利用できません。時間をおくか、手動で入力してください。','暂时无法提取信息，请稍后重试或手动填写。']
       :['抽出できませんでした。手動で入力してください。','提取失败，请手动填写。'];
   }
   finally {button.disabled=false;renderLanguage()}

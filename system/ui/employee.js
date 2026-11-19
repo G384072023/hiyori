@@ -32,7 +32,9 @@ function render() {
       const button = add('button',next==='回収中'?t('回収を開始','开始回收'):t('回収完了にする','标记回收完成'));
       button.className = 'primary';
       button.disabled = busy;
-      button.onclick = () => update(order.id,next);
+      button.type = 'button';
+      button.dataset.orderId = order.id;
+      button.dataset.nextStatus = next;
     }
     return card;
   });
@@ -73,6 +75,11 @@ async function update(id,status) {
 function refresh() {
   load().catch(()=>{message.textContent=t('担当一覧を取得できませんでした。','无法读取任务列表。');});
 }
-document.querySelector('#reload').onclick=refresh;
+// Delegate clicks so re-rendering a card cannot leave a stale button callback.
+jobs.addEventListener('click',event=>{
+  const button=event.target.closest('button[data-order-id]');
+  if(button&&jobs.contains(button))update(button.dataset.orderId,button.dataset.nextStatus);
+});
+document.querySelector('#reload').addEventListener('click',refresh);
 render();
 refresh();

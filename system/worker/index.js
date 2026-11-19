@@ -91,17 +91,54 @@ if(await hasAccounts(env))config.staffs=registered.results.map(account=>account.
 const accountsResponse=await accountRoute(req,u,env);
 if(accountsResponse)return accountsResponse;
 if(req.method==='PUT'&&u.pathname==='/api/settings'){let b=await req.json();
+if(!b||typeof b!=='object'||Array.isArray(b))return json({error:'入力内容を確認してください。'},400);
 const flyer=b.flyer??config.flyer;
 if(!validFlyer(flyer))return json({error:'回収案内の設定をご確認ください'},400);
 if(await hasAccounts(env))b.staffs=config.staffs;
 if(typeof b.brand!=='string'||!b.brand.trim()||b.brand.length>30||!/^#[0-9a-f]{6}$/i.test(b.color)||!Array.isArray(b.staffs)||b.staffs.length>20||b.staffs.some(x=>typeof x!=='string'||!x.trim()||x.length>50)||new Set(b.staffs).size!==b.staffs.length)return json({error:'設定内容を確認してください'},400);const removed=config.staffs.filter(x=>!b.staffs.includes(x));for(const name of removed){if(await env.DB.prepare('SELECT id FROM orders WHERE staff=? LIMIT 1').bind(name).first())return json({error:'注文があるスタッフは削除・改名できません'},400)}await env.DB.prepare('INSERT INTO settings (id,value) VALUES (?,?) ON CONFLICT(id) DO UPDATE SET value=excluded.value').bind('app',JSON.stringify({brand:b.brand,color:b.color,staffs:b.staffs,flyer})).run();return json({ok:true})}
 if(u.pathname==='/api/data'){return json({config,customers:(await env.DB.prepare('SELECT * FROM customers').all()).results,orders:(await env.DB.prepare('SELECT * FROM orders ORDER BY rowid DESC').all()).results})}
-if(req.method==='POST'&&u.pathname==='/api/customers'){let b=await req.json();if(!b.name?.trim()||!b.phone?.trim())return json({error:'氏名と電話番号を入力してください'},400);await env.DB.prepare('INSERT INTO customers VALUES (?,?,?)').bind(crypto.randomUUID(),b.name.trim(),b.phone.trim()).run();return json({ok:true})}
-if(req.method==='POST'&&u.pathname==='/api/orders'){let b=await req.json();if(!b.customer||!b.items?.trim()||!b.address?.trim()||!b.appointment)return json({error:'必須項目を確認してください'},400);if(!await env.DB.prepare('SELECT id FROM customers WHERE id=?').bind(b.customer).first())return json({error:'顧客が見つかりません'},400);await env.DB.prepare('INSERT INTO orders (id,customer,items,address,appointment,note) VALUES (?,?,?,?,?,?)').bind('HY-'+crypto.randomUUID().slice(0,8),b.customer,b.items,b.address,b.appointment,b.note||'').run();return json({ok:true})}
-if(req.method==='PATCH'&&u.pathname.startsWith('/api/orders/')){let b=await req.json();if(!['未割当','回収予定','回収中','回収完了'].includes(b.status)||!['',...config.staffs].includes(b.staff))return json({error:'更新内容が不正です'},400);if((b.status==='未割当')!==!b.staff)return json({error:'担当者とステータスを確認してください'},400);await env.DB.prepare('UPDATE orders SET staff=?, status=? WHERE id=?').bind(b.staff,b.status,decodeURIComponent(u.pathname.split('/').pop())).run();return json({ok:true})}
+if(req.method==='POST'&&u.pathname==='/api/customers'){
+  const body=await req.json();
+  const name=boundedText(body?.name,80),phone=boundedText(body?.phone,30);
+  if(!name||!validPhone(phone))return json({error:'氏名と電話番号を確認してください。'},400);
+  const result=await env.DB.prepare(`INSERT INTO customers (id,name,phone)
+    SELECT ?,?,? WHERE NOT EXISTS (SELECT 1 FROM customers WHERE name=? AND phone=?)`)
+    .bind(crypto.randomUUID(),name,phone,name,phone).run();
+  if((result.meta?.changes??result.changes)!==1)return json({error:'同じ氏名・電話番号の顧客が登録済みです。'},409);
+  return json({ok:true});
+}
+if(req.method==='POST'&&u.pathname==='/api/orders'){
+  const body=await req.json();
+  const customer=boundedText(body?.customer,80),items=boundedText(body?.items,500);
+  const address=boundedText(body?.address,500),appointment=boundedText(body?.appointment,16);
+  if(!customer||!items||!address||!validAppointment(appointment)||!validNote(body?.note))
+    return json({error:'必須項目を確認してください'},400);
+  if(!await env.DB.prepare('SELECT id FROM customers WHERE id=?').bind(customer).first())
+    return json({error:'顧客が見つかりません'},400);
+  await env.DB.prepare('INSERT INTO orders (id,customer,items,address,appointment,note) VALUES (?,?,?,?,?,?)')
+    .bind('HY-'+crypto.randomUUID().slice(0,8),customer,items,address,appointment,boundedText(body?.note,2000)).run();
+  return json({ok:true});
+}
+if(req.method==='PATCH'&&u.pathname.startsWith('/api/orders/')){
+  const body=await req.json();
+  if(!body||!['未割当','回収予定','回収中','回収完了'].includes(body.status)||!['',...config.staffs].includes(body.staff))
+    return json({error:'更新内容が不正です'},400);
+  if((body.status==='未割当')!==!body.staff)
+    return json({error:'担当者とステータスを確認してください'},400);
+  const id=decodeURIComponent(u.pathname.split('/').pop());
+  // Recheck staff availability inside the write, after any concurrent account disable.
+  const result=await env.DB.prepare(`UPDATE orders SET staff=?,status=? WHERE id=? AND
+    (?='' OR NOT EXISTS(SELECT 1 FROM app_accounts) OR
+    EXISTS(SELECT 1 FROM app_accounts WHERE role='employee' AND enabled=1 AND staff_name=?))`)
+    .bind(body.staff,body.status,id,body.staff,body.staff).run();
+  if((result.meta?.changes??result.changes)===1)return json({ok:true});
+  if(!await env.DB.prepare('SELECT id FROM orders WHERE id=?').bind(id).first())
+    return json({error:'オーダーが見つかりません。'},404);
+  return json({error:'担当スタッフが利用停止されています。画面を更新してください。'},409);
+}
 if(req.method==='POST'&&u.pathname==='/api/public/request')return await submitCustomerRequest(req,env.DB);
 if(req.method==='POST'&&['/api/extract','/api/public/extract'].includes(u.pathname)){
-  const {text}=await req.json();
+  const {text}=(await req.json())||{};
   if(typeof text!=='string'||!text.trim()||text.length>6000)return json({error:'6000文字以内で入力してください'},400);
   if(env.AI){
     try {return json(await extractWithCloudflare(text,env))}
@@ -115,7 +152,7 @@ if(req.method==='POST'&&['/api/extract','/api/public/extract'].includes(u.pathna
 }
 if(u.pathname.startsWith('/api/'))return json({error:'見つかりません'},404);if(!['/','/customer','/customer/','/admin','/admin/','/staff','/staff/'].includes(u.pathname))return new Response('Not found',{status:404});
 return new Response(isBackOffice?renderPage('admin.html',env):customerPage(config,env),{headers:{'content-type':'text/html;charset=UTF-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}})
-}catch(e){return json({error:'処理に失敗しました。時間をおいて再度お試しください。'},500)}}};
+}catch(e){if(e instanceof SyntaxError)return json({error:'入力形式を確認してください。'},400);return json({error:'処理に失敗しました。時間をおいて再度お試しください。'},500)}}};
 function validFlyer(flyer) {
   const validText=(value,max)=>typeof value==='string'&&value.trim().length>0&&value.length<=max;
   return flyer && validText(flyer.company,60) && validText(flyer.hours,40)
@@ -213,14 +250,10 @@ async function submitCustomerRequest(request,db) {
   if(raw.length>12000)return json({error:'invalid'},413);
   let fields;
   try {fields=JSON.parse(raw)} catch {return json({error:'invalid'},400)}
-  function field(name,max) {
-    const value=fields?.[name];
-    return typeof value==='string'&&value.length<=max?value.trim():'';
-  }
-  const name=field('name',80),phone=field('phone',30),items=field('items',500);
-  const address=field('address',500),appointment=field('appointment',16),note=field('note',2000);
-  if(!name||!/^[+0-9() -]{7,30}$/.test(phone)||phone.replace(/\D/g,'').length<7||!items||!address
-    ||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(appointment)||!Number.isFinite(Date.parse(appointment+'+09:00')))
+  const name=boundedText(fields?.name,80),phone=boundedText(fields?.phone,30),items=boundedText(fields?.items,500);
+  const address=boundedText(fields?.address,500),appointment=boundedText(fields?.appointment,16);
+  const note=boundedText(fields?.note,2000);
+  if(!name||!validPhone(phone)||!items||!address||!validAppointment(appointment)||!validNote(fields?.note))
     return json({error:'invalid'},400);
   const customerId=crypto.randomUUID(),orderId='HY-'+crypto.randomUUID().slice(0,8);
   // Match a pre-registered customer by their exact name and phone.
@@ -322,4 +355,26 @@ async function extractWithCloudflare(text,env) {
   if(!fields.every(field=>typeof result?.[field]==='string'&&result[field].length<=500))
     throw Error('Invalid structured output');
   return {...Object.fromEntries(fields.map(field=>[field,result[field].trim()])),mode:'model'};
+}
+
+
+function boundedText(value,max) {
+  return typeof value==='string'&&value.length<=max?value.trim():'';
+}
+function validPhone(value) {
+  return /^[+0-9() -]{7,30}$/.test(value)&&value.replace(/\D/g,'').length>=7;
+}
+function validNote(value) {
+  return value===undefined||(typeof value==='string'&&value.length<=2000);
+}
+function validAppointment(value) {
+  if(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value))return false;
+  const parts=value.match(/\d+/g).map(Number);
+  const [year,month,day,hour,minute]=parts;
+  const parsed=new Date(value+'+09:00');
+  if(!Number.isFinite(parsed.getTime()))return false;
+  // JavaScript normalizes dates such as February 30. Compare the calendar fields too.
+  const calendar=new Date(parsed.getTime()+9*3600000);
+  return calendar.getUTCFullYear()===year&&calendar.getUTCMonth()+1===month&&calendar.getUTCDate()===day
+    &&calendar.getUTCHours()===hour&&calendar.getUTCMinutes()===minute;
 }
