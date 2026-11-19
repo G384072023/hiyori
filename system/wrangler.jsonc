@@ -16,7 +16,7 @@
     {
       "binding": "DB",
       "database_name": "hiyori-recycle-db",
-      "database_id": "REPLACE_WITH_D1_DATABASE_ID",
+      "database_id": "c4cbe101-5def-411c-98df-9f1d070b7516",
       "migrations_dir": "drizzle"
     }
   ],
@@ -40,5 +40,6 @@
         "period": 60
       }
     }
-  ]
+  ],
+  "account_id": "490eb8ad3575bd4610354e0281fed37f"
 }
