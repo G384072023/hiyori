@@ -1,3 +1,4 @@
+import {identity,hasAccounts,initializeAccounts,loginRoute,accountRoute} from './accounts.js';
 // Local preview loads editable assets from ui/. The hosting build embeds the same files.
 const builtAssets = /* UI_BUILD_INSERT */ {};
 const flyerDefaults = {
@@ -60,21 +61,23 @@ if(env.HIYORI_HOSTING==='cloudflare'){
   }
 }
 
+const authentication=await loginRoute(req,u,env);
+if(authentication)return authentication;
 const adminShell=u.pathname==='/admin'||u.pathname==='/admin/';
 if(u.pathname==='/admin')return Response.redirect(new URL('/admin/',u),302);
 // Keep browser Basic credentials scoped to /admin/ and /employee/ separately.
 if(u.pathname.startsWith('/admin/api/'))u.pathname=u.pathname.slice('/admin'.length);
+if(u.pathname==='/admin/accounts.js')u.pathname='/assets/accounts.js';
 if(u.pathname==='/admin/app.js')u.pathname='/assets/staff.js';
 const isEmployee=u.pathname==='/employee'||u.pathname.startsWith('/employee/');
 if(isEmployee)return await employeeRoute(req,u,env);
-const isBackOffice=u.pathname==='/admin'||u.pathname==='/admin/'||u.pathname==='/staff'||u.pathname==='/staff/'||u.pathname.startsWith('/api/')||u.pathname==='/assets/staff.js';
+const isBackOffice=u.pathname==='/admin'||u.pathname==='/admin/'||u.pathname==='/staff'||u.pathname==='/staff/'||u.pathname.startsWith('/api/')||['/assets/staff.js','/assets/accounts.js'].includes(u.pathname);
 const isCustomerApi=u.pathname==='/api/public/request'||u.pathname==='/api/public/extract';
 if(isBackOffice&&(adminShell||!isCustomerApi)&&!await canAccessBackOffice(req,env)){
   if(u.pathname.startsWith('/api/'))return json({error:'Access denied'},403);
-  if((env.LOCAL_PREVIEW||env.HIYORI_HOSTING==='cloudflare')&&env.HIYORI_ADMIN_PASSWORD)return new Response('スタッフ専用 / 仅限工作人员',{status:401,headers:{'WWW-Authenticate':'Basic realm="Hiyori staff", charset="UTF-8"','Cache-Control':'no-store'}});
-  return new Response('スタッフ専用 / 仅限工作人员',{status:403,headers:{'Cache-Control':'no-store'}});
+  return new Response(null,{status:302,headers:{Location:'/admin/login','Cache-Control':'no-store'}});
 }
-const assetName={'/assets/style.css':'style.css','/assets/customer.js':'customer.js','/assets/staff.js':'staff.js'}[u.pathname];
+const assetName={'/assets/style.css':'style.css','/assets/customer.js':'customer.js','/assets/staff.js':'staff.js','/assets/accounts.js':'accounts.js'}[u.pathname];
 if(assetName){
   const body=(env.UI_ASSETS||builtAssets)[assetName];
   if(typeof body!=='string')return new Response('Asset not found',{status:404});
@@ -83,10 +86,15 @@ if(assetName){
 if(req.method!=='GET'&&req.method!=='HEAD'&&req.headers.get('Origin')&&req.headers.get('Origin')!==u.origin)return json({error:'Access denied'},403);
 const cfgRow=await env.DB.prepare('SELECT value FROM settings WHERE id=?').bind('app').first();const savedConfig=cfgRow?JSON.parse(cfgRow.value):{brand:'日和',color:'#a33354',staffs:['a','b','c']};
 const config={...savedConfig,flyer:{...flyerDefaults,...savedConfig.flyer}};
+const registered=await env.DB.prepare("SELECT staff_name FROM app_accounts WHERE role='employee' AND enabled=1 ORDER BY username").all();
+if(await hasAccounts(env))config.staffs=registered.results.map(account=>account.staff_name);
+const accountsResponse=await accountRoute(req,u,env);
+if(accountsResponse)return accountsResponse;
 if(req.method==='PUT'&&u.pathname==='/api/settings'){let b=await req.json();
 const flyer=b.flyer??config.flyer;
 if(!validFlyer(flyer))return json({error:'回収案内の設定をご確認ください'},400);
-if(typeof b.brand!=='string'||!b.brand.trim()||b.brand.length>30||!/^#[0-9a-f]{6}$/i.test(b.color)||!Array.isArray(b.staffs)||!b.staffs.length||b.staffs.length>20||b.staffs.some(x=>typeof x!=='string'||!x.trim()||x.length>50)||new Set(b.staffs).size!==b.staffs.length)return json({error:'設定内容を確認してください'},400);const removed=config.staffs.filter(x=>!b.staffs.includes(x));for(const name of removed){if(await env.DB.prepare('SELECT id FROM orders WHERE staff=? LIMIT 1').bind(name).first())return json({error:'注文があるスタッフは削除・改名できません'},400)}await env.DB.prepare('INSERT INTO settings (id,value) VALUES (?,?) ON CONFLICT(id) DO UPDATE SET value=excluded.value').bind('app',JSON.stringify({brand:b.brand,color:b.color,staffs:b.staffs,flyer})).run();return json({ok:true})}
+if(await hasAccounts(env))b.staffs=config.staffs;
+if(typeof b.brand!=='string'||!b.brand.trim()||b.brand.length>30||!/^#[0-9a-f]{6}$/i.test(b.color)||!Array.isArray(b.staffs)||b.staffs.length>20||b.staffs.some(x=>typeof x!=='string'||!x.trim()||x.length>50)||new Set(b.staffs).size!==b.staffs.length)return json({error:'設定内容を確認してください'},400);const removed=config.staffs.filter(x=>!b.staffs.includes(x));for(const name of removed){if(await env.DB.prepare('SELECT id FROM orders WHERE staff=? LIMIT 1').bind(name).first())return json({error:'注文があるスタッフは削除・改名できません'},400)}await env.DB.prepare('INSERT INTO settings (id,value) VALUES (?,?) ON CONFLICT(id) DO UPDATE SET value=excluded.value').bind('app',JSON.stringify({brand:b.brand,color:b.color,staffs:b.staffs,flyer})).run();return json({ok:true})}
 if(u.pathname==='/api/data'){return json({config,customers:(await env.DB.prepare('SELECT * FROM customers').all()).results,orders:(await env.DB.prepare('SELECT * FROM orders ORDER BY rowid DESC').all()).results})}
 if(req.method==='POST'&&u.pathname==='/api/customers'){let b=await req.json();if(!b.name?.trim()||!b.phone?.trim())return json({error:'氏名と電話番号を入力してください'},400);await env.DB.prepare('INSERT INTO customers VALUES (?,?,?)').bind(crypto.randomUUID(),b.name.trim(),b.phone.trim()).run();return json({ok:true})}
 if(req.method==='POST'&&u.pathname==='/api/orders'){let b=await req.json();if(!b.customer||!b.items?.trim()||!b.address?.trim()||!b.appointment)return json({error:'必須項目を確認してください'},400);if(!await env.DB.prepare('SELECT id FROM customers WHERE id=?').bind(b.customer).first())return json({error:'顧客が見つかりません'},400);await env.DB.prepare('INSERT INTO orders (id,customer,items,address,appointment,note) VALUES (?,?,?,?,?,?)').bind('HY-'+crypto.randomUUID().slice(0,8),b.customer,b.items,b.address,b.appointment,b.note||'').run();return json({ok:true})}
@@ -120,6 +128,8 @@ function validFlyer(flyer) {
 
 // Keep the authorization check on the server for every back-office route and API.
 async function canAccessBackOffice(request,env) {
+  if(await identity(request,env,'admin'))return true;
+  if(await hasAccounts(env))return false;
   if(env.HIYORI_HOSTING==='cloudflare'){
     if(!validOnlinePasswords(env))return false;
     return matchesLocalLogin(request,'admin',env.HIYORI_ADMIN_PASSWORD);
@@ -153,17 +163,16 @@ async function matchesLocalLogin(request,username,password) {
 }
 
 async function employeeRoute(request,url,env) {
-  const password=env.HIYORI_EMPLOYEE_PASSWORD;
-  const employee=env.HIYORI_EMPLOYEE_NAME||'a';
-  if((!env.LOCAL_PREVIEW&&env.HIYORI_HOSTING!=='cloudflare')
-    ||(env.HIYORI_HOSTING==='cloudflare'&&!validOnlinePasswords(env))
-    ||!password||password===env.HIYORI_ADMIN_PASSWORD)
-    return new Response('スタッフアカウント未設定 / 未配置员工账号',{status:403});
-  if(!await matchesLocalLogin(request,'employee',password)){
-    return new Response('スタッフログイン / 员工登录',{status:401,headers:{
-      'WWW-Authenticate':'Basic realm="Hiyori employee", charset="UTF-8"',
-      'Cache-Control':'no-store',
-    }});
+  const account=await identity(request,env,'employee');
+  let employee=account?.staff_name;
+  if(!account){
+    const legacyAllowed=!await hasAccounts(env)&&(env.LOCAL_PREVIEW||env.HIYORI_HOSTING==='cloudflare')
+      &&await matchesLocalLogin(request,'employee',env.HIYORI_EMPLOYEE_PASSWORD);
+    if(!legacyAllowed){
+      if(url.pathname.startsWith('/employee/api/'))return json({error:'Access denied'},403);
+      return new Response(null,{status:302,headers:{Location:'/employee/login','Cache-Control':'no-store'}});
+    }
+    employee=env.HIYORI_EMPLOYEE_NAME||'a';
   }
   if(request.method==='GET'&&['/employee','/employee/'].includes(url.pathname))
     return new Response(renderPage('employee.html',env),{headers:{'Content-Type':'text/html;charset=UTF-8','Cache-Control':'no-store'}});

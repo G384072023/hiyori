@@ -1,9 +1,10 @@
 import http from 'node:http';import {DatabaseSync} from 'node:sqlite';import worker from '../worker/index.js';import fs from 'node:fs';
 // Read UI files on each request so edits in VS Code show up after a browser refresh.
-const loadAssets=()=>Object.fromEntries(['style.css','customer.js','staff.js','employee.js','customer.html','admin.html','employee.html'].map(name=>
+const loadAssets=()=>Object.fromEntries(['style.css','customer.js','staff.js','employee.js','accounts.js','customer.html','admin.html','employee.html'].map(name=>
   [name,fs.readFileSync(new URL('../'+(name.endsWith('.html')?'':'ui/')+name,import.meta.url),'utf8')]));
 const db=new DatabaseSync(process.env.HIYORI_DB||'hiyori.sqlite');if(!db.prepare("SELECT name FROM sqlite_master WHERE name='customers'").get())db.exec(fs.readFileSync(new URL('../drizzle/0000_initial.sql',import.meta.url),'utf8'));
 if(!db.prepare("SELECT name FROM sqlite_master WHERE name='settings'").get())db.exec(fs.readFileSync(new URL('../drizzle/0001_settings.sql',import.meta.url),'utf8'));
+if(!db.prepare("SELECT name FROM sqlite_master WHERE name='app_accounts'").get())db.exec(fs.readFileSync(new URL('../drizzle/0002_accounts.sql',import.meta.url),'utf8'));
 const DB={async batch(statements){
   db.exec('BEGIN');
   try {const results=await Promise.all(statements.map(statement=>statement.run()));db.exec('COMMIT');return results}

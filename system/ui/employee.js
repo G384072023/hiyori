@@ -45,6 +45,7 @@ language.onchange = () => {
 };
 async function load() {
   const response = await fetch('/employee/api/orders');
+  if(response.status===403){location.assign('/employee/login');return;}
   if (!response.ok) throw Error('load');
   const data = await response.json();
   title.textContent = data.employee;

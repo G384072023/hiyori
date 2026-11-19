@@ -32,3 +32,5 @@ npm run deploy
 - Deploy command: `npx wrangler d1 migrations apply DB --remote && npx wrangler deploy`
 
 GitHub Pages は従来の表示確認用ページです。公開システムへのリンクは Workers の公開アドレス確定後に更新します。実データやローカルの `hiyori.sqlite` は GitHub にアップロードしないでください。
+
+初回のログイン後、アカウントはD1に保存されます。パスワード変更、管理者・スタッフの追加と利用停止は、管理者画面の「アカウント管理」で行います。シークレットの初期値変更では登録済みアカウントのパスワードは変更されません。

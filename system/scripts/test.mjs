@@ -1,4 +1,4 @@
-import {DatabaseSync} from 'node:sqlite';import fs from 'node:fs';import assert from 'node:assert/strict';import worker from '../worker/index.js';const db=new DatabaseSync(':memory:');db.exec(fs.readFileSync(new URL('../drizzle/0000_initial.sql',import.meta.url),'utf8'));db.exec(fs.readFileSync(new URL('../drizzle/0001_settings.sql',import.meta.url),'utf8'));const UI_ASSETS=Object.fromEntries(['customer.html','admin.html','employee.html'].map(name=>[name,fs.readFileSync(new URL('../'+name,import.meta.url),'utf8')]));
+import {DatabaseSync} from 'node:sqlite';import fs from 'node:fs';import assert from 'node:assert/strict';import worker from '../worker/index.js';const db=new DatabaseSync(':memory:');db.exec(fs.readFileSync(new URL('../drizzle/0000_initial.sql',import.meta.url),'utf8'));db.exec(fs.readFileSync(new URL('../drizzle/0001_settings.sql',import.meta.url),'utf8'));db.exec(fs.readFileSync(new URL('../drizzle/0002_accounts.sql',import.meta.url),'utf8'));const UI_ASSETS=Object.fromEntries(['customer.html','admin.html','employee.html'].map(name=>[name,fs.readFileSync(new URL('../'+name,import.meta.url),'utf8')]));
 const DB={async batch(statements){return Promise.all(statements.map(statement=>statement.run()))},prepare(sql){let a=[];return {bind(...b){a=b;return this},async all(){return{results:db.prepare(sql).all(...a)}},async first(){return db.prepare(sql).get(...a)},async run(){return db.prepare(sql).run(...a)}}}};async function call(p,method='GET',b){let r=await worker.fetch(new Request('http://test/api/'+p,{method,headers:{'oai-authenticated-user-email':'operator@example.test','oai-authenticated-user-id':'operator'},...(b?{body:JSON.stringify(b)}:{})}),{DB,UI_ASSETS,HIYORI_ADMIN_EMAIL:'operator@example.test'});assert.equal(r.status,200);return r.json()}
 await call('customers','POST',{name:'テスト顧客',phone:'090-0000-0000'});let d=await call('data');await call('orders','POST',{customer:d.customers[0].id,items:'冷蔵庫1台',address:'東京都新宿区',appointment:'2026-11-15T10:00'});d=await call('data');let id=d.orders[0].id;for(let status of ['回収予定','回収中','回収完了'])await call('orders/'+id,'PATCH',{staff:'a',status});assert.equal((await call('data')).orders[0].status,'回収完了');let x=await call('extract','POST',{text:'11月15日に冷蔵庫1台を回収してください。東京都新宿区西新宿2-8-1'});assert.match(x.items,/冷蔵庫/);assert.match(x.address,/東京都/);const config={brand:'日和デモ',color:'#9e3653',staffs:['a','王 小明']};
 await call('settings','PUT',config);
@@ -16,7 +16,7 @@ const env={DB,UI_ASSETS,HIYORI_ADMIN_EMAIL:'operator@example.test'};
 const customerHeaders={'oai-authenticated-user-email':'customer@example.test','oai-authenticated-user-id':'customer'};
 for(const route of ['/staff','/api/data','/api/customers','/api/settings','/api/orders/'+id]){
   const response=await worker.fetch(new Request('http://test'+route,{headers:customerHeaders}),env);
-  assert.equal(response.status,403,route);
+  assert.equal(response.status,route==='/staff'?302:403,route);
 }
 const publicPage=await (await worker.fetch(new Request('http://test/customer'),env)).text();
 assert.match(publicPage,/回収のお申し込み/);
@@ -60,10 +60,10 @@ async function local(path,auth,method='GET',payload) {
     ...(payload?{body:JSON.stringify(payload)}:{}),
   }),localEnv);
 }
-assert.equal((await local('/employee/')).status,401);
-assert.equal((await local('/employee/',adminAuth)).status,401);
+assert.equal((await local('/employee/')).status,302);
+assert.equal((await local('/employee/',adminAuth)).status,302);
 assert.equal((await local('/employee/',employeeAuth)).status,200);
-assert.equal((await local('/admin/',employeeAuth)).status,401);
+assert.equal((await local('/admin/',employeeAuth)).status,302);
 assert.equal((await local('/admin/api/data',employeeAuth)).status,403);
 assert.equal((await local('/admin/api/data',adminAuth)).status,200);
 assert.match(await (await local('/admin/',adminAuth)).text(),/admin\/app.js/);
@@ -96,8 +96,8 @@ async function hosted(path,credentials,method='GET',payload) {
   }),hostedEnv);
 }
 assert.equal((await hosted('/customer')).status,200);
-assert.equal((await hosted('/admin/')).status,401);
-assert.equal((await hosted('/admin/','admin:123456')).status,401);
+assert.equal((await hosted('/admin/')).status,302);
+assert.equal((await hosted('/admin/','admin:123456')).status,302);
 assert.equal((await hosted('/admin/','admin:online-admin-secret-unique')).status,200);
 assert.equal((await hosted('/employee/','employee:online-worker-secret-unique')).status,200);
 assert.equal((await hosted('/admin/api/data','employee:online-worker-secret-unique')).status,403);
@@ -108,3 +108,48 @@ assert.equal((await worker.fetch(new Request('https://hiyori.example/api/public/
   method:'POST',headers:{'Content-Type':'application/json'},body:'{"text":"冷蔵庫"}',
 }),{...hostedEnv,REQUEST_LIMITER:{limit:async()=>({success:false})}})).status,429);
 console.log('PASS: hosted secrets, cloud model adapter (simulated), and public rate limits');
+
+// Database accounts replace fixed environment credentials after first successful login.
+async function accountRequest(path,method='GET',body,cookie) {
+  return worker.fetch(new Request('https://hiyori.example'+path,{
+    method,headers:{'Content-Type':'application/json',Origin:'https://hiyori.example',...(cookie?{Cookie:cookie}:{})},
+    ...(body?{body:JSON.stringify(body)}:{}),
+  }),hostedEnv);
+}
+const initialLogin=await accountRequest('/admin/login','POST',{
+  username:'admin',password:hostedEnv.HIYORI_ADMIN_PASSWORD,
+});
+assert.equal(initialLogin.status,200);
+const adminCookie=initialLogin.headers.get('set-cookie').split(';')[0];
+const list=await (await accountRequest('/admin/api/accounts','GET',undefined,adminCookie)).json();
+assert.equal(list.accounts.length,2);
+assert(!JSON.stringify(list).includes('password_hash'));
+const originalAdmin=list.accounts.find(account=>account.role==='admin');
+const originalEmployee=list.accounts.find(account=>account.role==='employee');
+assert.equal((await accountRequest('/admin/api/accounts/'+originalAdmin.id,'PATCH',{action:'disable'},adminCookie)).status,409);
+assert.equal((await accountRequest('/admin/api/accounts','POST',{
+  username:'b',role:'employee',staff_name:'b',password:'worker-b-123',
+},adminCookie)).status,201);
+assert.equal((await accountRequest('/admin/api/accounts','POST',{
+  username:'manager2',role:'admin',password:'manager-123',
+},adminCookie)).status,201);
+const bLogin=await accountRequest('/employee/login','POST',{username:'b',password:'worker-b-123'});
+assert.equal(bLogin.status,200);
+const bCookie=bLogin.headers.get('set-cookie').split(';')[0];
+assert.equal((await accountRequest('/admin/api/data','GET',undefined,bCookie)).status,403);
+const users=await (await accountRequest('/admin/api/accounts','GET',undefined,adminCookie)).json();
+const bAccount=users.accounts.find(account=>account.username==='b');
+await accountRequest('/admin/api/orders/'+orderId,'PATCH',{staff:'b',status:'回収予定'},adminCookie);
+assert.equal((await (await accountRequest('/employee/api/orders','GET',undefined,bCookie)).json()).orders.length,1);
+assert.equal((await accountRequest('/admin/api/accounts/'+bAccount.id,'PATCH',{action:'disable'},adminCookie)).status,200);
+assert.equal((await accountRequest('/employee/api/orders','GET',undefined,bCookie)).status,403);
+const afterDisable=await (await accountRequest('/admin/api/data','GET',undefined,adminCookie)).json();
+assert.equal(afterDisable.orders.find(order=>order.id===orderId).status,'未割当');
+assert(!afterDisable.config.staffs.includes('b'));
+await accountRequest('/admin/api/accounts/'+bAccount.id,'PATCH',{action:'enable'},adminCookie);
+assert.equal((await accountRequest('/admin/api/accounts/'+originalAdmin.id,'PATCH',{action:'password',password:'123456'},adminCookie)).status,200);
+assert.equal((await accountRequest('/admin/api/data','GET',undefined,adminCookie)).status,403);
+assert.equal((await accountRequest('/admin/login','POST',{username:'admin',password:'123456'})).status,200);
+assert.equal((await accountRequest('/admin/login','POST',{username:'admin',password:hostedEnv.HIYORI_ADMIN_PASSWORD})).status,401);
+assert.equal((await accountRequest('/employee/login','POST',{username:'b',password:'worker-b-123'})).status,200);
+console.log('PASS: account creation, short password, session revocation, staff disabling and last-admin protection');
