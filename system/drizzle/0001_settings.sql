@@ -1,0 +1,1 @@
+CREATE TABLE settings (id TEXT PRIMARY KEY, value TEXT NOT NULL);

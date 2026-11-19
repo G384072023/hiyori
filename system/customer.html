@@ -1,0 +1,23 @@
+<!-- サーバーが {{...}} を設定値に置換します。 -->
+<!doctype html><html lang="ja"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{BRAND}} | 回収のご案内</title><link rel="stylesheet" href="/assets/style.css"><style>:root{--pink:{{COLOR}}}</style><body><header class="publicHeader"><strong>{{COMPANY}}</strong><select id="language" class="role" aria-label="言語 / 语言"><option value="ja">日本語</option><option value="zh">中文</option></select></header>
+<main class="content publicContent" style="margin:auto">
+<section class="flyerHero">
+<h1><span data-ja="家電・電子機器" data-zh="家电与电子设备">家電・電子機器</span><br><span data-ja="回収のご案内" data-zh="回收服务指南">回収のご案内</span></h1>
+<p><span data-ja="壊れている品物や年式の古い品物もご相談ください。" data-zh="损坏或型号较旧的物品也可咨询。">壊れている品物や年式の古い品物もご相談ください。</span></p>
+<div class="flyerActions"><a class="primary" href="#request"><span data-ja="オンラインで申し込む →" data-zh="在线申请 →">オンラインで申し込む →</span></a><a class="secondary" href="tel:{{PHONE}}"><span data-ja="電話で相談" data-zh="电话咨询">電話で相談</span></a></div></section>
+<section class="flyerCatalog"><h2><span data-ja="回収品目の例" data-zh="常见回收物品">回収品目の例</span></h2><div class="catalogGrid">{{SERVICES}}</div>
+<p class="hint"><span data-ja="品目や状態によって回収条件が異なります。費用や回収可否は事前にお問い合わせください。" data-zh="回收条件视物品及其状态而定，请提前咨询能否回收及相关费用。">品目や状態によって回収条件が異なります。費用や回収可否は事前にお問い合わせください。</span></p></section>
+<section class="flyerContact"><div><h2><span data-ja="電話でのお問い合わせ" data-zh="电话咨询">電話でのお問い合わせ</span></h2><p><span data-ja="受付時間" data-zh="服务时间">受付時間</span> {{HOURS}}</p></div><div>{{CONTACT}}</div></section>
+<form class="panel formpanel" id="request">
+<h2><span data-ja="回収のお申し込み" data-zh="申请回收">回収のお申し込み</span></h2><p><span data-ja="希望日時は受付時点では確定していません。" data-zh="提交后，期望时间仍需确认。">希望日時は受付時点では確定していません。</span></p>
+<div class="field"><label for="name"><span data-ja="お名前" data-zh="姓名">お名前</span></label><input id="name" name="name" required maxlength="80" autocomplete="name"></div>
+<div class="field"><label for="phone"><span data-ja="電話番号" data-zh="电话号码">電話番号</span></label><input id="phone" name="phone" required maxlength="30" type="tel" autocomplete="tel"></div>
+<details class="aibox"><summary><span data-ja="日本語の依頼文から情報を抽出" data-zh="从日语申请中提取信息">日本語の依頼文から情報を抽出</span></summary><div class="field"><label for="raw"><span data-ja="ご依頼文（日本語）" data-zh="日语申请内容">ご依頼文（日本語）</span></label><textarea id="raw" maxlength="6000"></textarea></div>
+<button class="secondary" id="extract" type="button"><span data-ja="内容を抽出する" data-zh="提取信息">内容を抽出する</span></button><p class="hint" id="extracted" aria-live="polite"></p></details>
+<div class="field"><label for="items"><span data-ja="回収品" data-zh="回收物品">回収品</span></label><input id="items" name="items" required maxlength="500"></div>
+<div class="field"><label for="address"><span data-ja="回収先の住所" data-zh="回收地址">回収先の住所</span></label><input id="address" name="address" required maxlength="500" autocomplete="street-address"></div>
+<div class="field"><label for="appointment"><span data-ja="回収希望日時（日本時間）" data-zh="期望回收时间（日本时间）">回収希望日時（日本時間）</span></label><input id="appointment" name="appointment" required type="datetime-local"></div>
+<div class="field"><label for="note"><span data-ja="備考" data-zh="备注">備考</span></label><textarea id="note" name="note" maxlength="2000"></textarea></div>
+<button class="primary" id="send"><span data-ja="申し込む" data-zh="提交申请">申し込む</span></button><p id="result" role="status"></p></form>
+</main><script src="/assets/customer.js"></script></body></html>

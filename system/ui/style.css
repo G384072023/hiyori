@@ -1,0 +1,158 @@
+/* Common theme, back office, mobile layout and customer flyer. */
+:root{--ink:#222125;--pink:#a33354;--muted:#8b888c;--line:#e9e6e7;--bg:#f7f6f5}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px -apple-system,BlinkMacSystemFont,'Hiragino Kaku Gothic ProN',sans-serif}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer;border:0}
+button:focus-visible,a:focus-visible{outline:3px solid #db7194;outline-offset:3px}
+aside{position:fixed;inset:0 auto 0 0;width:232px;background:#211f22;color:#aaa5ab;padding:35px 22px;display:flex;flex-direction:column}
+.brand{color:white;font-size:30px;letter-spacing:4px;font-weight:650}
+.brand i{color:#d15b7b;font-style:normal}
+.tag{font-size:9px;letter-spacing:2px;margin:8px 0 48px}
+.navlabel{font-size:10px;letter-spacing:2px;margin:0 15px 14px}
+.nav button{display:block;width:100%;text-align:left;background:none;color:#a9a3a9;padding:15px;border-radius:7px;margin:5px 0}
+.nav button.active{background:var(--pink);color:var(--accent-text,#fff)}
+.nav button span{margin-right:15px;font-size:17px}
+.asidebottom{margin-top:auto;border-top:1px solid #3c373d;padding:22px 10px 0;font-size:11px;line-height:1.9}
+.live{color:#d76c8b}
+main{margin-left:232px}
+header{height:82px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 40px}
+.crumb{color:var(--muted);font-size:12px}
+.account{display:flex;gap:15px;align-items:center}
+.avatar{border-radius:50%;background:#f3e7eb;color:var(--pink);padding:11px;font-size:12px}
+.role{border:1px solid var(--line);background:white;border-radius:6px;padding:9px}
+.content{max-width:1500px;margin:auto;padding:35px 40px}
+.eyebrow{font-size:10px;color:var(--pink);letter-spacing:2px;font-weight:700}
+h1{font-size:27px;margin:10px 0;font-weight:650;letter-spacing:1px}
+h2{font-size:16px;margin:0}
+p{color:var(--muted);line-height:1.8}
+.heading{display:flex;justify-content:space-between;align-items:center;margin-bottom:28px}
+.primary{color:var(--accent-text,#fff);background:var(--pink);padding:12px 20px;border-radius:6px}
+.secondary{background:white;color:var(--ink);border:1px solid var(--line);padding:10px 16px;border-radius:6px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+.stat{background:white;border:1px solid var(--line);padding:22px;border-radius:9px}
+.stat label{color:#767178;font-size:12px}
+.stat strong{display:block;font-size:34px;margin:17px 0 12px;font-weight:550;letter-spacing:1px}
+.stat small{color:#8f8990;font-size:11px}
+.stat .sym{float:right;color:#b07187;font-size:20px}
+.stat.highlight{border-top:3px solid var(--pink);padding-top:20px}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:22px;margin-top:26px}
+.panel{background:white;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.panelhead{padding:23px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line)}
+.panelhead small{font-size:11px;color:var(--muted)}
+.toolbar{padding:18px 23px;display:flex;gap:10px;flex-wrap:wrap}
+.search{min-width:130px;flex:1}
+.toolbar input,.toolbar select{background:#faf9f9;border:1px solid var(--line);border-radius:5px;padding:10px}
+.tablewrap{overflow:auto}
+table{width:100%;border-collapse:collapse;text-align:left;white-space:nowrap}
+th{background:#faf9f9;color:#888189;font-size:10px;font-weight:500;letter-spacing:1px;padding:13px 20px}
+td{border-bottom:1px solid #f0edef;padding:18px 20px;font-size:12px}
+td small{display:block;margin-top:7px;color:#969097;font-size:10px}
+.badge{font-size:10px;border-radius:4px;padding:6px 9px;background:#f4e8ed;color:#a33354}
+.b回収完了{background:#edf4ef;color:#5d8468}
+.b回収予定{background:#eeedf6;color:#7b70a0}
+.b回収中{background:#fff1e5;color:#b8864b}
+.link{background:none;color:var(--pink);font-size:12px}
+.note{padding:20px 23px;font-size:11px;color:var(--muted)}
+.sidebody{padding:22px}
+.alert{border-left:3px solid var(--pink);background:#fbf2f5;padding:16px;font-size:12px;line-height:1.9}
+.staffrow{padding:18px 0;border-bottom:1px solid var(--line);display:flex;gap:12px;align-items:center}
+.staffrow small{color:var(--muted);font-size:10px;display:block;margin-top:6px}
+.staffrow b{font-weight:500;font-size:12px}
+.staffrow em{margin-left:auto;font-style:normal;color:var(--pink);font-size:12px}
+.banner{margin-top:22px;padding:24px;background:#2a2429;color:white;border-radius:8px}
+.banner p{font-size:11px;color:#bdb0b9;margin-bottom:0}
+.flow{display:flex;gap:12px;margin-top:25px;font-size:11px;color:#a59aa3}
+.flow b{color:#c9728d;font-weight:400}
+.empty{padding:45px;text-align:center;color:var(--muted)}
+.mobilecards{display:grid;gap:16px;margin-top:22px}
+.job{background:white;border:1px solid var(--line);border-radius:10px;padding:22px}
+.job h2{margin:18px 0 10px}
+.job p{margin:8px 0}
+.job button{margin-top:15px}
+.formpanel{padding:28px;max-width:800px}
+.field{margin:20px 0}
+.field label{display:block;font-size:12px;margin-bottom:9px}
+.field input,.field select,.field textarea{width:100%;border:1px solid #ddd7db;padding:12px;border-radius:5px;background:#fff}
+.field textarea{min-height:105px;resize:vertical}
+.formrow{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.hint{font-size:11px;color:var(--muted);line-height:1.8}
+.aibox{background:#faf4f6;border:1px solid #eddbe2;border-radius:8px;padding:20px}
+.aibox textarea{background:white}
+.toast{position:fixed;bottom:24px;right:24px;background:#282328;color:#fff;padding:15px 24px;border-radius:6px;z-index:10;max-width:90vw}
+.modalback{position:fixed;inset:0;background:#18131c88;z-index:5;display:grid;place-items:center;padding:20px}
+.modal{background:white;border-radius:12px;padding:30px;width:min(520px,100%);max-height:90vh;overflow:auto}
+.modalhead{display:flex;justify-content:space-between}
+.footer{margin-top:28px;color:#aaa1a8;font-size:10px;display:flex;justify-content:space-between}
+.demo{background:#f0ecee;color:#8b717d;padding:8px 15px;font-size:10px;text-align:center}
+ @media(min-width:1550px){.content{padding-top:48px}
+.stat{padding:28px}
+.grid{margin-top:32px}
+}
+@media(max-width:1150px){.grid{grid-template-columns:1fr}
+.rightside{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.banner{margin:0}
+.content{padding:28px 24px}
+header{padding:0 24px}
+.stats{gap:10px}
+.stat{padding:16px}
+}
+@media(max-width:760px){aside{position:static;width:100%;padding:18px}
+.brand{font-size:23px}
+.tag,.navlabel,.asidebottom{display:none}
+.nav{display:flex;overflow:auto;margin-top:12px}
+.nav button{white-space:nowrap;padding:10px;margin:0 4px;font-size:12px}
+.nav button span{margin-right:7px}
+main{margin:0}
+header{height:auto;padding:14px 18px}
+.crumb{display:none}
+.account{width:100%;justify-content:space-between}
+.content{padding:24px 18px}
+.heading{gap:12px}
+.heading p{font-size:11px}
+h1{font-size:23px}
+.stats{grid-template-columns:1fr 1fr}
+.stat strong{font-size:28px}
+.rightside{display:block}
+.banner{margin-top:18px}
+.formrow{grid-template-columns:1fr;gap:0}
+.panelhead{padding:18px}
+.footer{line-height:1.8;gap:20px}
+.flow{flex-wrap:wrap}
+}
+
+.guideShortcut{display:flex;gap:18px;align-items:center;justify-content:space-between;background:white;border:1px solid var(--line);border-left:4px solid var(--pink);border-radius:7px;padding:15px 20px;margin-bottom:20px}
+.guideShortcut p{margin:3px 0 0;font-size:12px}
+.flyerHero{background:#fff;border:2px solid var(--ink);border-top:8px solid var(--pink);padding:clamp(24px,5vw,65px);position:relative}
+.flyerHero h1{font-size:clamp(36px,6vw,80px);line-height:1.05;font-weight:900;letter-spacing:-.055em;margin:16px 0}
+.flyerHero h1 span:first-child{color:var(--pink)}
+.flyerHero p{color:var(--ink);font-size:15px}
+.flyerHero .flyerCompany{font-size:13px;letter-spacing:.12em;font-weight:800}
+.flyerActions{display:flex;gap:12px;flex-wrap:wrap;margin-top:26px}
+.flyerActions a{text-decoration:none}
+.flyerCatalog{background:white;margin-top:22px;padding:24px;border:1px solid var(--line)}
+.flyerCatalog h2{font-size:20px;margin-bottom:16px}
+.catalogGrid{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--ink)}
+.catalogCell{padding:16px;border:1px solid var(--ink);border-width:0 1px 1px 0}
+.catalogCell h3{margin:0 0 8px;color:var(--pink);font-size:15px}
+.catalogCell p{margin:0;color:var(--ink);font-size:13px}
+.flyerContact{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:24px;background:#211f22;color:white;margin-top:18px}
+.flyerContact p{margin-bottom:0;color:#d6cbd3}
+.flyerContact a{display:block;color:white;font-weight:800;text-decoration:none;font-size:clamp(19px,3vw,27px);line-height:1.4}
+.flyerSettings{padding-top:20px;border-top:1px solid var(--line)}
+@media(max-width:760px){.catalogGrid{grid-template-columns:1fr 1fr}
+.catalogCell{padding:11px}
+.flyerContact{align-items:flex-start;flex-direction:column}
+.guideShortcut .secondary{font-size:11px}
+.flyerHero h1{letter-spacing:-.03em}
+}
+
+/* Customer page */
+.publicHeader{height:auto;min-height:68px;gap:14px;background:#211f22;color:#fff}
+.publicHeader strong{font-size:17px}
+.publicHeader .role{color:#222}
+.publicContent{max-width:1020px}
+.publicContent form{margin-top:25px;max-width:none}
+.flyerActions a.primary{text-decoration:none}
+.publicContent .field input{min-height:44px}
+#result{color:var(--ink)}

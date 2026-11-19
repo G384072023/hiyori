@@ -1,0 +1,19 @@
+{
+  "name": "hiyori-recycle",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "bash scripts/build.sh",
+    "validate": "node scripts/validate-artifact.mjs",
+    "start": "node scripts/preview.mjs",
+    "test": "node scripts/test.mjs",
+    "build:cloudflare": "node scripts/build-cloudflare.mjs",
+    "deploy": "wrangler deploy",
+    "db:remote": "wrangler d1 migrations apply DB --remote",
+    "deploy:check": "wrangler deploy --dry-run",
+    "cloud:setup": "node scripts/setup-cloudflare.mjs"
+  },
+  "devDependencies": {
+    "wrangler": "^4.36.0"
+  }
+}

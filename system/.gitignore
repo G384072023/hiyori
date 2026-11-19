@@ -1,0 +1,11 @@
+dist/
+site.tar.gz
+
+hiyori.sqlite*
+
+node_modules/
+.wrangler/
+.dev.vars*
+.env*
+!.env.example
+.cloud-setup.json
